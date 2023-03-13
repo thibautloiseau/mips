@@ -10,29 +10,38 @@ class CTDataset(Dataset):
 
         self.samples = []
 
+        # Training mode only on initially labeled data
         if mode == 'train':
-            files = sorted(os.listdir(f'data/X_{mode}'))
-            patient_ids = list(set([i.split('.')[0] for i in files]))
+            patient_ids = [i for i in range(200)]
 
             for i in patient_ids:
-                self.samples.append((os.path.join('data', f'X_{mode}', f'{i}.png'),
-                                     os.path.join('data', f'y_{mode}', f'{i}.png')))
+                self.samples.append((os.path.join('data', f'X_train', f'{i}.png'),
+                                     os.path.join('data', f'y_train', f'{i}.png')))
 
-        elif mode == 'test':
-            files = sorted(os.listdir('data/X_test'))
-            patient_ids = list(set([i.split('.')[0] for i in files]))
+        # Unlabeled mode to create dataset to create predictions for co-training
+        elif mode == 'unlabeled':
+            patient_ids = [i for i in range(200, 1000)]
 
             for i in patient_ids:
-                self.samples.append((os.path.join(f'data', 'X_test', f'{i}.png'),
-                                     ''))
+                self.samples.append((os.path.join('data', f'X_train', f'{i}.png'),
+                                     os.path.join('data', f'y_train', f'{i}.png')))
+
+        # Full mode after creating labels for initially unlabeled data
+        elif mode == 'full':
+            patient_ids = [i for i in range(1000)]
+
+            for i in patient_ids:
+                self.samples.append((os.path.join('data', f'X_train', f'{i}.png'),
+                                     os.path.join('data', f'y_train', f'{i}.png')))
 
     def __getitem__(self, item):
         slice, seg = self.samples[item]
+        data_path = self.samples[item][0]
 
         slice = torch.from_numpy(cv2.imread(slice, cv2.IMREAD_GRAYSCALE))[None, :, :]
-        seg = '' if seg == '' else torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :]
+        seg = torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :]
 
-        return {'slice': slice, 'seg': seg}
+        return {'slice': slice, 'seg': seg, 'data_path': data_path}
 
     def __len__(self):
         return len(self.samples)

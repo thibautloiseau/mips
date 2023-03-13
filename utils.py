@@ -1,5 +1,7 @@
 import torch
 from tqdm import tqdm
+import cv2
+import numpy as np
 
 
 def train(model, train_loader, num_epochs=10, lr=0.001):
@@ -46,5 +48,29 @@ def train(model, train_loader, num_epochs=10, lr=0.001):
             optimizer.step()
 
         print(f'Epoch: {epoch+1}, Loss: {global_loss}')
+
+    return
+
+
+def create_pred(model, unlabeled_dataset):
+    cuda = True if torch.cuda.is_available() else False
+    print(f"Using cuda device: {cuda}")  # check if GPU is used
+
+    # Tensor type (put everything on GPU if possible)
+    Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+
+    if cuda:
+        model = model.cuda()
+
+    with torch.no_grad():
+        for sample in unlabeled_dataset:
+            slice = sample['slice'].type(Tensor)[None, :, :, :]
+            path_saving = sample['data_path'].split('\\')[-1]
+
+            # Creating prediction for unlabeled data
+            y_pred = model(slice).cpu().numpy().squeeze().reshape(512, 512, 1).astype(np.uint8)
+
+            # Saving prediction
+            cv2.imwrite(f'data/y_train/{path_saving}', y_pred)
 
     return
