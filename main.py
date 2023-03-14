@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader
 from data import CTDataset
 from utils import train, create_pred
 from model import UNet
+import torchvision.transforms as transforms
 
 
 if __name__ == '__main__':
@@ -13,8 +14,16 @@ if __name__ == '__main__':
     batch_size_1 = 8
     num_epochs_1 = 5
 
+    # Define transforms
+    train_transform = transforms.Compose([transforms.Normalize(0, 1),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.RandomVerticalFlip()
+                                          ])
+
+    test_transform = transforms.Compose([transforms.Normalize(0, 1)])
+
     # Loader for labeled data
-    train_loader_1 = DataLoader(CTDataset('train'),
+    train_loader_1 = DataLoader(CTDataset('train', transform=train_transform),
                                 batch_size=batch_size_1,
                                 shuffle=True)
 
@@ -28,7 +37,7 @@ if __name__ == '__main__':
     ################################################### Second phase ###################################################
     ####################################################################################################################
     # Dataset for unlabeled data
-    unlabeled_dataset = CTDataset('unlabeled')
+    unlabeled_dataset = CTDataset('unlabeled', transform=test_transform)
 
     # Create labels for unlabeled examples
     print("Creating labels for unlabeled data")

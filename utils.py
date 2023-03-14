@@ -2,6 +2,7 @@ import torch
 from tqdm import tqdm
 import cv2
 import numpy as np
+from losses import GlobalLoss
 
 
 def train(model, train_loader, num_epochs=10, lr=0.001):
@@ -14,7 +15,8 @@ def train(model, train_loader, num_epochs=10, lr=0.001):
     # Loss function
     # To change -> permutation independent
     # We just take L1Loss to make it run at first
-    criterion = torch.nn.L1Loss()
+    # criterion = torch.nn.L1Loss()
+    criterion = GlobalLoss()
 
     if cuda:
         model = model.cuda()
@@ -53,6 +55,7 @@ def train(model, train_loader, num_epochs=10, lr=0.001):
 
 
 def create_pred(model, unlabeled_dataset):
+    """Create predictions for unlabeled data for co-training"""
     cuda = True if torch.cuda.is_available() else False
     print(f"Using cuda device: {cuda}")  # check if GPU is used
 

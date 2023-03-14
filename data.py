@@ -2,13 +2,15 @@ from torch.utils.data import Dataset
 import os
 import torch
 import cv2
+import torchvision.transforms as transforms
 
 
 class CTDataset(Dataset):
-    def __init__(self, mode):
+    def __init__(self, mode, transform=None):
         super().__init__()
 
         self.samples = []
+        self.transform = transform
 
         # Training mode only on initially labeled data
         if mode == 'train':
@@ -38,8 +40,12 @@ class CTDataset(Dataset):
         slice, seg = self.samples[item]
         data_path = self.samples[item][0]
 
-        slice = torch.from_numpy(cv2.imread(slice, cv2.IMREAD_GRAYSCALE))[None, :, :]
-        seg = torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :]
+        slice = torch.from_numpy(cv2.imread(slice, cv2.IMREAD_GRAYSCALE))[None, :, :].type(torch.FloatTensor)
+        seg = torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :].type(torch.FloatTensor)
+
+        # We transform the slice only, not the segmentations
+        if self.transform is not None:
+            slice = self.transform(slice)
 
         return {'slice': slice, 'seg': seg, 'data_path': data_path}
 
