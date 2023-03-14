@@ -71,7 +71,7 @@ def create_pred(model, unlabeled_dataset):
             path_saving = sample['data_path'].split('\\')[-1]
 
             # Creating prediction for unlabeled data
-            y_pred = model(slice).cpu().numpy().squeeze().reshape(512, 512, 1).astype(np.uint8)
+            y_pred = torch.round(model(slice)).cpu().numpy().squeeze().reshape(512, 512, 1).astype(np.uint8)
 
             # Saving prediction
             cv2.imwrite(f'data/y_train/{path_saving}', y_pred)

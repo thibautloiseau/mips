@@ -37,14 +37,14 @@ class FinalLayer(nn.Module):
         super(FinalLayer, self).__init__()
         self.model = nn.Sequential(
             nn.Upsample(scale_factor=2),
-            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
-            nn.Tanh(),
+            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1)
         )
 
     def forward(self, x, skip_input=None):
         if skip_input is not None:
             x = torch.cat((x, skip_input), 1)  # add the skip connection
         x = self.model(x)
+        x = (x - x.min()) / (x.max() - x.min()) * 255
         return x
 
 

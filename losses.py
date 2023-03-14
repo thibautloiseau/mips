@@ -19,21 +19,6 @@ def huber_loss(y_pred, theta=0.1):
     return loss
 
 
-def pi_l1_loss(pi_pred, pi_target, margin=1.0, pos_wght=3.0):
-    """
-    Params: pi_pred -- float tensor in size [N, N]
-            pi_target -- float tensor in size [N, N], with value {0, 1}, which
-                        ** 1 for pixels belonging to different object
-                        ** 0 for pixels belonging to same object
-            margin/pos_wght -- float
-    """
-    loss_pi_1 = huber_loss(F.relu(margin - pi_pred))
-    loss_pi_0 = huber_loss(pi_pred)
-
-    loss = pos_wght*pi_target*loss_pi_1 + loss_pi_0*(1.0 - pi_target)
-    return loss
-
-
 class BinaryLoss(nn.Module):
     """Compute binary loss to force background pixels close to 0 and foreground pixels far from 0"""
     def __init__(self, margin=2.0):
@@ -58,104 +43,68 @@ class PermuInvLoss(nn.Module):
     It encourages pixels in same instance close to each other,
                   pixels from different instances far away from each other.
     """
-    def __init__(self, margin=1.0, pi_pairs=4096, avg_num_obj=16, pos_wght=3.0, FG_stCH=1):
+    def __init__(self, margin=1.0, pi_pairs=2048, pos_wgt=3.0):
         super(PermuInvLoss, self).__init__()
 
         self.margin = margin
         self.pi_pairs = pi_pairs
-        self.avg_num_obj = avg_num_obj
-        self.pos_wght = pos_wght
-        self.fg_stCH = FG_stCH
+        self.pos_wgt = pos_wgt
 
-    def sampling_over_objects(self, targets_onehot, BG=0):
+    def sampling_over_objects(self, true_1D):
         """
-        Params:
-            targets_onehot -- tensor in [N, ch] with integers values.
-            target_classes -- if not None, in size [ch], ch is No. of Objs in targets.
-            BG -- if True, BG is counted as one object.
+        We do random sampling on pi_pairs number of pixels only on foreground pixels
+        The binary loss already enables to distinguish background from foreground
+
+        true_1D: One ground truth segmentation [N, ch], no batch_size
         """
-        eff_idx, smpl_wght = [], []
-        cnts = targets_onehot.sum(axis=0)
-        num_obj = (cnts>0).sum() if BG else (cnts[self.fg_stCH:] > 0).sum()
+        # First we select the indexes for foreground pixels
+        idxs_FG = torch.nonzero(true_1D.squeeze()).squeeze()
 
-        # sample over each object
-        avg = self.pi_pairs//num_obj
+        # Create permutation to get random selection
+        perm = torch.randperm(idxs_FG.size(0))
 
-        for k in range(cnts.size(0)):
-            if cnts[k] == 0 or (BG == 0 and k < self.fg_stCH):
-                continue
+        # Taking only pi_pairs elements
+        idx = perm[:self.pi_pairs]
 
-            # sample index on current object
-            idx = targets_onehot[:, k].nonzero()
-            perm = torch.randperm(idx.size(0))
-            cur_sel = idx[perm][:avg]
-            smpl_size = torch.FloatTensor([cur_sel.size(0)]).cuda()
-            obj_wght = torch.pow(self.pi_pairs/(smpl_size + 1.), 1./3)
+        return idxs_FG[idx]
 
-            # add into the whole stack.
-            eff_idx.append(cur_sel)
-            smpl_wght.append(torch.ones(cur_sel.size(0), 1, dtype=torch.float)*obj_wght)
-
-        if len(eff_idx) == 0:
-            return None, None
-        else:
-            eff_idx = torch.cat(eff_idx, axis=0).squeeze()  # [N]
-            smpl_wght = torch.cat(smpl_wght, axis=0)  # [N,1]
-            return eff_idx, smpl_wght
-
-    def forward(self, y_pred, y_true, BG=False, sigma=1e-2):
+    def forward(self, y_pred, y_true):
         """
         Compute the permutation invariant loss on pixel pairs if both pixels are in the instances.
-        Params:
-            preds -- [bs, 1, ht, wd] from Relu(). here, ch could be:
-            targets -- [bs, ch', ht, wd]. onehot matrix
-            weights -- [bs, 1, ht, wd]
-            target_ids -- [bs, ch']
-            BG -- if True, treat BG as one instance.
-                | if False, don't sample point on BG pixels,
-                            and compute difference only on FG channels if ch>1
+
         """
         bs, ch, ht, wd = y_pred.size()
+        preds_1D = y_pred.view(bs, ch, ht*wd).permute(0, 2, 1)  # [bs, N, ch] with N = ht*wd
+        true_1D = y_true.view(bs, ch, ht*wd).permute(0, 2, 1)  # [bs, N, ch] with N = ht*wd
 
-        # reshape
-        preds_1D = y_pred.view(bs, ch, ht*wd).permute(0, 2, 1)  # in size [bs, N, ch]
-        targets_1D = y_true.view(bs, -1, ht*wd).permute(0, 2, 1)  # in size [bs, N, ch']
+        all_losses = []
 
-        # compute loss for each sample
-        all_loss = []
-
-        for b in range(bs):
+        for el in range(bs):
+            # We get the indexes on which we want to compute the loss randomly
             with torch.no_grad():
-                smpl_idx, smpl_wght = self.sampling_over_objects(targets_1D[b], BG=BG)
+                smpl_idxs = self.sampling_over_objects(true_1D[el])
 
-            if smpl_idx is None:
-                continue
+            # Getting corresponding predictions and true labels
+            smpl_pred = preds_1D[el][smpl_idxs].squeeze()
+            smpl_true = true_1D[el][smpl_idxs].squeeze()
 
-            # Compute pairwise differences over pred/target/weight
-            smpl_pred = preds_1D[b][smpl_idx]
-            smpl_target = targets_1D[b][smpl_idx].float()
+            # We then want to compute distances between all possible pairs
+            smpl_pred_combs = torch.combinations(smpl_pred, r=2)
+            smpl_true_combs = torch.combinations(smpl_true, r=2)
 
-            pi_pred = torch.clamp(torch.abs(smpl_pred-smpl_pred.permute(1, 0)), max=5.)
+            # Computing all distances and
+            pi_pred = torch.abs(F.relu(smpl_pred_combs[:, 0] - F.relu(smpl_pred_combs[:, 1])))
+            pi_target = (smpl_true_combs[:, 0] == smpl_true_combs[:, 1]).float()
 
-            with torch.no_grad():
-                target_numi = torch.matmul(smpl_target, smpl_target.permute(1, 0))
-                target_tmp = smpl_target.pow(2).sum(axis=1).pow(0.5)
-                target_demi = torch.matmul(target_tmp[:, None], target_tmp[None, :])
-                pi_target = ((target_numi/target_demi) < 0.5).float()
+            loss_1 = huber_loss(pi_pred)
+            loss_0 = huber_loss(self.margin - pi_pred)
 
-            pi_obj_wght = (smpl_wght + smpl_wght.permute(1, 0))
+            loss = (pi_target*loss_1 + (1. - pi_target)*loss_0).mean()
+            all_losses.append(loss)
 
-            # Compute loss
-            loss = pi_l1_loss(pi_pred, pi_target, self.margin, self.pos_wght)
+        all_losses = torch.stack(all_losses).mean()
 
-            if pi_obj_wght is not None:
-                loss = torch.mul(loss, pi_obj_wght)
-
-            flag = (loss > sigma).float()
-            loss = (loss * flag).sum() / (flag.sum() + 1.)
-            all_loss.append(loss)
-
-        return torch.stack(all_loss).mean()
+        return all_losses
 
 
 class QuantizationLoss(nn.Module):
@@ -170,9 +119,10 @@ class QuantizationLoss(nn.Module):
         """
         @Param: y_pred -- instance map after relu. size [bs, 1, ht, wd], only on foreground
         """
-        assert(y_pred.size()[1] == 1)
+        loss = torch.abs(y_pred[y_pred > 0.] - torch.round(y_pred[y_pred > 0.])).mean()
+        loss = loss if loss is not None else 0.
 
-        return torch.abs(y_pred[y_pred > 0] - torch.round(y_pred[y_pred > 0])).mean()
+        return loss
 
 
 class RegularizationLoss(nn.Module):
@@ -232,5 +182,5 @@ class GlobalLoss(nn.Module):
         lr = self.RegularizationLoss(y_pred)
         lpi = self.PermuInvLoss(y_pred, y_true)
 
-        return lb + lq + lr + lpi
+        return 10.*lb + 0.5*lq + 0.1*lr + 0.2*lpi
 
