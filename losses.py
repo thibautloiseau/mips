@@ -99,7 +99,7 @@ class PermuInvLoss(nn.Module):
             loss_1 = huber_loss(pi_pred)
             loss_0 = huber_loss(self.margin - pi_pred)
 
-            loss = (pi_target*loss_1 + (1. - pi_target)*loss_0).mean()
+            loss = (3.0*pi_target*loss_1 + (1. - pi_target)*loss_0).mean()  # We penalize more when gt is the same
             all_losses.append(loss)
 
         all_losses = torch.stack(all_losses).mean()

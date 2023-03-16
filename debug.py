@@ -6,6 +6,7 @@ import numpy as np
 if __name__ == '__main__':
     # Loader for labeled data
     dataset = CTDataset('train')
+    print(dataset[0]['slice'].shape)
 
     # Count mean number of instances per segmentation on labeled set & non-null pixels & mean number of pixels per instance
     num_objects = []

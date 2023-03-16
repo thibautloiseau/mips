@@ -19,8 +19,10 @@ class UNetUp(nn.Module):
     def __init__(self, in_size, out_size):
         super(UNetUp, self).__init__()
         self.model = nn.Sequential(
-            nn.ConvTranspose2d(in_size, out_size, kernel_size=4,
-                               stride=2, padding=1),
+            nn.Upsample(scale_factor=2),  # Upsample and then convolution
+            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
+            # nn.ConvTranspose2d(in_size, out_size, kernel_size=4,
+            #                    stride=2, padding=1),
             nn.InstanceNorm2d(out_size),
             nn.ReLU()
         )
@@ -43,9 +45,7 @@ class FinalLayer(nn.Module):
     def forward(self, x, skip_input=None):
         if skip_input is not None:
             x = torch.cat((x, skip_input), 1)  # add the skip connection
-        x = self.model(x)
-        x = (x - x.min()) / (x.max() - x.min()) * 255
-        return x
+        return self.model(x)
 
 
 class UNet(nn.Module):
@@ -77,4 +77,4 @@ class UNet(nn.Module):
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
 
-        return self.final(u4, d1)
+        return torch.clamp(self.final(u4, d1), max=254)
