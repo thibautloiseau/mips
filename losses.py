@@ -120,7 +120,7 @@ class QuantizationLoss(nn.Module):
         @Param: y_pred -- instance map after relu. size [bs, 1, ht, wd], only on foreground
         """
         loss = torch.abs(y_pred[y_pred > 0.] - torch.round(y_pred[y_pred > 0.])).mean()
-        loss = loss if loss is not None else 0.
+        loss = loss if not loss.isnan() else torch.Tensor([0.]).to(loss.device)
 
         return loss
 
@@ -182,5 +182,6 @@ class GlobalLoss(nn.Module):
         lr = self.RegularizationLoss(y_pred)
         lpi = self.PermuInvLoss(y_pred, y_true)
 
-        return 10.*lb + 0.5*lq + 0.1*lr + 0.2*lpi
+        # print(lb.item(), lq.item(), lr.item(), lpi.item())
 
+        return 10.*lb + .5*lq + .1*lr + .2*lpi

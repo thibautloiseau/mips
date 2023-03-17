@@ -1,14 +1,19 @@
 import torch
 from torch import nn
+from meanshift import MeanShiftCluster
 
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size):
         super(UNetDown, self).__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(in_size, out_size, kernel_size=3, stride=2, padding=1),
-            nn.InstanceNorm2d(out_size),
-            nn.ReLU()
+            nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_size),
+            nn.ReLU(),
+            nn.Conv2d(out_size, out_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_size),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
           )
 
     def forward(self, x):
@@ -19,12 +24,13 @@ class UNetUp(nn.Module):
     def __init__(self, in_size, out_size):
         super(UNetUp, self).__init__()
         self.model = nn.Sequential(
-            nn.Upsample(scale_factor=2),  # Upsample and then convolution
+            nn.Upsample(scale_factor=2),  # Upsample and then convolution to avoid artifacts
             nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
-            # nn.ConvTranspose2d(in_size, out_size, kernel_size=4,
-            #                    stride=2, padding=1),
-            nn.InstanceNorm2d(out_size),
-            nn.ReLU()
+            nn.BatchNorm2d(out_size),
+            nn.ReLU(),
+            nn.Conv2d(out_size, out_size, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_size),
+            nn.ReLU(),
         )
 
     def forward(self, x, skip_input=None):
@@ -64,6 +70,7 @@ class UNet(nn.Module):
         self.up4 = UNetUp(256, 64)
 
         self.final = FinalLayer(128, out_channels)
+        self.meanshift = MeanShiftCluster()
 
     def forward(self, x):
         d1 = self.down1(x)
@@ -77,4 +84,11 @@ class UNet(nn.Module):
         u3 = self.up3(u2, d3)
         u4 = self.up4(u3, d2)
 
-        return torch.clamp(self.final(u4, d1), max=254)
+        out = self.final(u4, d1)
+
+        with torch.no_grad():
+            seg = self.meanshift(out)
+            seg = (seg - seg.min()) / (seg.max() - seg.min()) * 255
+
+        return {'out': out, 'seg': seg}
+        # return {'out': out}

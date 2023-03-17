@@ -1,12 +1,15 @@
+import os
+
 from data import CTDataset
 import torch
 import numpy as np
 
 
 if __name__ == '__main__':
+    runs = [dir for dir in os.listdir('logs/') if os.path.isdir(f'logs/{dir}')]
+
     # Loader for labeled data
     dataset = CTDataset('train')
-    print(dataset[0]['slice'].shape)
 
     # Count mean number of instances per segmentation on labeled set & non-null pixels & mean number of pixels per instance
     num_objects = []
@@ -43,3 +46,5 @@ if __name__ == '__main__':
           f'Std number of pixels per instance: {np.std(pixels_per_instance)}\n'
           f'Max number of pixels per instance: {np.max(pixels_per_instance)}\n'
           f'Min number of pixels per instance: {np.min(pixels_per_instance)}')
+
+

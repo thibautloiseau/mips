@@ -1,22 +1,33 @@
+import os
+import torch
+import numpy as np
 from torch.utils.data import DataLoader, SubsetRandomSampler
+import torchvision.transforms as transforms
+from torch.utils.tensorboard import SummaryWriter
+
 from data import CTDataset
 from utils import train, create_pred
 from model import UNet
-import torchvision.transforms as transforms
-import numpy as np
-from torch.utils.tensorboard import SummaryWriter
 
 
 if __name__ == '__main__':
     # Setting writer to log results
-    writer = SummaryWriter('logs/')
+    runs = [dir for dir in os.listdir('logs/') if os.path.isdir(f'logs/{dir}')]
+
+    if not runs:
+        new_run = 1
+
+    else:
+        new_run = max([int(el.split('_')[1]) for el in os.listdir('logs/')]) + 1
+
+    writer = SummaryWriter(f'logs/run_{new_run}')
 
     ####################################################################################################################
     ################################################### First phase ####################################################
     ####################################################################################################################
     # Hyperparameters for first phase
     lr_1 = 1e-3
-    batch_size_1 = 8
+    batch_size_1 = 2
     num_epochs_1 = 30
 
     # Define transforms
@@ -58,7 +69,7 @@ if __name__ == '__main__':
 
     # New hyperparemeters for second phase
     lr_2 = 1e-3
-    batch_size_2 = 8
+    batch_size_2 = 2
     num_epochs_2 = 30
 
     # Create new dataloader with full dataset
@@ -82,7 +93,7 @@ if __name__ == '__main__':
 
     # New hyperparemeters for second phase
     lr_3 = 1e-3
-    batch_size_3 = 8
+    batch_size_3 = 2
     num_epochs_3 = 30
 
     # Create new dataloader with full dataset

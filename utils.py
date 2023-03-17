@@ -43,7 +43,7 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
             y_pred = model(slice)
 
             # Compute the corresponding loss
-            loss = criterion(y_pred, seg)
+            loss = criterion(y_pred['out'], seg)
             train_loss.append(loss.item())
 
             # Compute the gradient and perform one optimization step
@@ -51,7 +51,7 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
             optimizer.step()
 
             # Compute metric
-            train_score.append(rand_score(y_pred, seg))
+            train_score.append(rand_score(y_pred['seg'], seg))
 
         if val_loader is not None:
             # Evaluation
@@ -64,11 +64,11 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
                     y_pred = model(slice)
 
                     # Compute the corresponding loss
-                    loss = criterion(y_pred, seg)
+                    loss = criterion(y_pred['out'], seg)
                     eval_loss.append(loss.item())
 
                     # Compute metric
-                    eval_score.append(rand_score(y_pred, seg))
+                    eval_score.append(rand_score(y_pred['seg'], seg))
 
             print(f'Epoch: {epoch + 1}\n'
                   f'\tTrain loss: {np.mean(train_loss)}\n'
@@ -115,7 +115,7 @@ def create_pred(model, unlabeled_dataset):
             path_saving = sample['data_path'].split('\\')[-1]
 
             # Creating prediction for unlabeled data
-            y_pred = torch.round(model(slice)).cpu().numpy().squeeze().reshape(512, 512, 1).astype(np.uint8)
+            y_pred = model(slice)['seg'].cpu().numpy().squeeze().reshape(512, 512, 1).astype(np.uint8)
 
             # Saving prediction
             cv2.imwrite(f'data/y_train/{path_saving}', y_pred)
@@ -130,7 +130,7 @@ def rand_score(y_pred, y_true):
 
     for batch in range(bs):
         # Compute score for each batch
-        pred = torch.round(y_pred[batch]).detach().cpu().numpy().astype(int).ravel()
+        pred = y_pred[batch].detach().cpu().numpy().astype(int).ravel()
         true = y_true[batch].detach().cpu().numpy().astype(int).ravel()
 
         score += m.adjusted_rand_score(pred, true)
