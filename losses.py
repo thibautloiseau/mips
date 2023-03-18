@@ -184,4 +184,4 @@ class GlobalLoss(nn.Module):
 
         # print(lb.item(), lq.item(), lr.item(), lpi.item())
 
-        return 10.*lb + .5*lq + .1*lr + .2*lpi
+        return 10.*lb + .5*lq + .1*lr + 0.2*lpi

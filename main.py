@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from data import CTDataset
 from utils import train, create_pred
-from model import UNet
+from unet import UNet
 
 
 if __name__ == '__main__':
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     ####################################################################################################################
     # Hyperparameters for first phase
     lr_1 = 1e-3
-    batch_size_1 = 2
+    batch_size_1 = 4
     num_epochs_1 = 30
 
     # Define transforms
@@ -53,55 +53,56 @@ if __name__ == '__main__':
 
     # Creating model
     model = UNet()
+    print(model)
 
     # Train on initial labeled data
     train(model, train_loader_1, val_loader_1, num_epochs=num_epochs_1, lr=lr_1, logger=writer)
 
-    ####################################################################################################################
-    ################################################### Second phase ###################################################
-    ####################################################################################################################
-    # Dataset for unlabeled data
-    unlabeled_dataset = CTDataset('unlabeled', transform=transform)
-
-    # Create labels for unlabeled examples
-    print("Creating labels for unlabeled data")
-    create_pred(model, unlabeled_dataset)
-
-    # New hyperparemeters for second phase
-    lr_2 = 1e-3
-    batch_size_2 = 2
-    num_epochs_2 = 30
-
-    # Create new dataloader with full dataset
-    train_loader_2 = DataLoader(CTDataset('full'),
-                                batch_size=batch_size_2,
-                                shuffle=True)
-
-    # Retrain on new data with new examples
-    train(model, train_loader_2, num_epochs=num_epochs_2, lr=lr_2, logger=writer)
-
-    ####################################################################################################################
-    ################################################### Third phase ####################################################
-    ####################################################################################################################
-    # We recreate new labels for the original unlabeled dataset
-    # Dataset for unlabeled data
-    unlabeled_dataset = CTDataset('unlabeled', transform=transform)
-
-    # Create labels for unlabeled examples
-    print("Creating labels for unlabeled data")
-    create_pred(model, unlabeled_dataset)
-
-    # New hyperparemeters for second phase
-    lr_3 = 1e-3
-    batch_size_3 = 2
-    num_epochs_3 = 30
-
-    # Create new dataloader with full dataset
-    train_loader_3 = DataLoader(CTDataset('full'),
-                                batch_size=batch_size_3,
-                                shuffle=True)
-
-    # Retrain on new data with new examples
-    train(model, train_loader_3, num_epochs=num_epochs_3, lr=lr_3, logger=writer)
+    # ####################################################################################################################
+    # ################################################### Second phase ###################################################
+    # ####################################################################################################################
+    # # Dataset for unlabeled data
+    # unlabeled_dataset = CTDataset('unlabeled', transform=transform)
+    #
+    # # Create labels for unlabeled examples
+    # print("Creating labels for unlabeled data")
+    # create_pred(model, unlabeled_dataset)
+    #
+    # # New hyperparemeters for second phase
+    # lr_2 = 1e-3
+    # batch_size_2 = 2
+    # num_epochs_2 = 30
+    #
+    # # Create new dataloader with full dataset
+    # train_loader_2 = DataLoader(CTDataset('full'),
+    #                             batch_size=batch_size_2,
+    #                             shuffle=True)
+    #
+    # # Retrain on new data with new examples
+    # train(model, train_loader_2, num_epochs=num_epochs_2, lr=lr_2, logger=writer)
+    #
+    # ####################################################################################################################
+    # ################################################### Third phase ####################################################
+    # ####################################################################################################################
+    # # We recreate new labels for the original unlabeled dataset
+    # # Dataset for unlabeled data
+    # unlabeled_dataset = CTDataset('unlabeled', transform=transform)
+    #
+    # # Create labels for unlabeled examples
+    # print("Creating labels for unlabeled data")
+    # create_pred(model, unlabeled_dataset)
+    #
+    # # New hyperparemeters for second phase
+    # lr_3 = 1e-3
+    # batch_size_3 = 2
+    # num_epochs_3 = 30
+    #
+    # # Create new dataloader with full dataset
+    # train_loader_3 = DataLoader(CTDataset('full'),
+    #                             batch_size=batch_size_3,
+    #                             shuffle=True)
+    #
+    # # Retrain on new data with new examples
+    # train(model, train_loader_3, num_epochs=num_epochs_3, lr=lr_3, logger=writer)
 
 

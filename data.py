@@ -11,6 +11,7 @@ class CTDataset(Dataset):
 
         self.samples = []
         self.transform = transform
+        self.mode = mode
 
         # Training mode only on initially labeled data
         if mode == 'train':
@@ -36,12 +37,24 @@ class CTDataset(Dataset):
                 self.samples.append((os.path.join('data', f'X_train', f'{i}.png'),
                                      os.path.join('data', f'y_train', f'{i}.png')))
 
+        elif mode == 'test':
+            patient_ids = [i for i in range(500)]
+
+            for i in patient_ids:
+                self.samples.append((os.path.join('data', f'X_test', f'{i}.png'),
+                                     ''))
+
     def __getitem__(self, item):
         slice, seg = self.samples[item]
         data_path = self.samples[item][0]
 
         slice = torch.from_numpy(cv2.imread(slice, cv2.IMREAD_GRAYSCALE))[None, :, :].type(torch.FloatTensor)
-        seg = torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :].type(torch.FloatTensor)
+
+        # Handle test
+        if self.mode != 'test':
+            seg = torch.from_numpy(cv2.imread(seg, cv2.IMREAD_GRAYSCALE))[None, :, :].type(torch.FloatTensor)
+        else:
+            seg = ''
 
         # We transform the slice only, not the segmentations
         if self.transform is not None:

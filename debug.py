@@ -3,6 +3,9 @@ import os
 from data import CTDataset
 import torch
 import numpy as np
+from utils import create_pred
+from unet import UNet
+import torchvision.transforms as transforms
 
 
 if __name__ == '__main__':
@@ -36,12 +39,12 @@ if __name__ == '__main__':
           f'Std number of objects: {np.std(num_objects)}\n'
           f'Max number of objects: {np.max(num_objects)}\n'
           f'Min number of objects: {np.min(num_objects)}\n\n'
-          
+
           f'Mean number of non null pixels: {np.mean(non_null_pixels)}\n'
           f'Std number of non null pixels: {np.std(non_null_pixels)}\n'
           f'Max number of non null pixels: {np.max(non_null_pixels)}\n'
           f'Min number of non null pixels: {np.min(non_null_pixels)}\n\n'
-          
+
           f'Mean number of pixels per instance: {np.mean(pixels_per_instance)}\n'
           f'Std number of pixels per instance: {np.std(pixels_per_instance)}\n'
           f'Max number of pixels per instance: {np.max(pixels_per_instance)}\n'
