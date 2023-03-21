@@ -5,9 +5,10 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
 
-from data import CTDataset
+from data import CTDatasetLabeled, CTDatasetUnlabeled
 from utils import train, create_pred
 from unet import UNet
+from augment import TransformLabeled
 
 
 if __name__ == '__main__':
@@ -16,7 +17,6 @@ if __name__ == '__main__':
 
     if not runs:
         new_run = 1
-
     else:
         new_run = max([int(el.split('_')[1]) for el in os.listdir('logs/')]) + 1
 
@@ -28,32 +28,21 @@ if __name__ == '__main__':
     # Hyperparameters for first phase
     lr_1 = 1e-3
     batch_size_1 = 4
-    num_epochs_1 = 30
+    num_epochs_1 = 60
 
     # Define transforms
-    transform = transforms.Compose([transforms.Normalize(0, 1)])
+    transform_train = TransformLabeled(mode='train')
+    transform_val = TransformLabeled(mode='val')
 
     # Create dataset and split train and val loaders
-    dataset = CTDataset('train', transform=transform)
-    validation_split = .2
+    train_dataset = CTDatasetLabeled('train', transform=transform_train)
+    val_dataset = CTDatasetLabeled('val', transform=transform_val)
 
-    # Creating data indices for training and validation splits
-    dataset_size = len(dataset)
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
-    np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
-
-    # Creating data samplers and loaders
-    train_sampler = SubsetRandomSampler(train_indices)
-    valid_sampler = SubsetRandomSampler(val_indices)
-
-    train_loader_1 = DataLoader(dataset, batch_size=batch_size_1, sampler=train_sampler)
-    val_loader_1 = DataLoader(dataset, batch_size=batch_size_1, sampler=valid_sampler)
+    train_loader_1 = DataLoader(train_dataset, batch_size=batch_size_1)
+    val_loader_1 = DataLoader(val_dataset, batch_size=batch_size_1)
 
     # Creating model
     model = UNet()
-    print(model)
 
     # Train on initial labeled data
     train(model, train_loader_1, val_loader_1, num_epochs=num_epochs_1, lr=lr_1, logger=writer)
@@ -61,12 +50,12 @@ if __name__ == '__main__':
     # ####################################################################################################################
     # ################################################### Second phase ###################################################
     # ####################################################################################################################
-    # # Dataset for unlabeled data
-    # unlabeled_dataset = CTDataset('unlabeled', transform=transform)
-    #
-    # # Create labels for unlabeled examples
-    # print("Creating labels for unlabeled data")
-    # create_pred(model, unlabeled_dataset)
+    # Dataset for unlabeled data
+    unlabeled_dataset = CTDatasetUnlabeled('unlabeled', transform=transform_val)
+
+    # Create labels for unlabeled examples
+    print("Creating labels for unlabeled data")
+    create_pred(model, unlabeled_dataset)
     #
     # # New hyperparemeters for second phase
     # lr_2 = 1e-3

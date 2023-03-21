@@ -43,7 +43,7 @@ class PermuInvLoss(nn.Module):
     It encourages pixels in same instance close to each other,
                   pixels from different instances far away from each other.
     """
-    def __init__(self, margin=1.0, pi_pairs=2048, pos_wgt=3.0):
+    def __init__(self, margin=1.0, pi_pairs=4096, pos_wgt=3.0):
         super(PermuInvLoss, self).__init__()
 
         self.margin = margin
@@ -120,7 +120,7 @@ class QuantizationLoss(nn.Module):
         @Param: y_pred -- instance map after relu. size [bs, 1, ht, wd], only on foreground
         """
         loss = torch.abs(y_pred[y_pred > 0.] - torch.round(y_pred[y_pred > 0.])).mean()
-        loss = loss if not loss.isnan() else torch.Tensor([0.]).to(loss.device)
+        # loss = loss if not loss.isnan() else torch.Tensor([0.]).to(loss.device)
 
         return loss
 
@@ -160,10 +160,11 @@ class RegularizationLoss(nn.Module):
             loss.extend([tmp])
 
         loss = torch.stack(loss)
+        # return loss.mean()
         if loss.max() > 0:
             return loss[loss > 0].mean()
         else:
-            return None
+            return torch.Tensor([0.]).to(loss.device)
 
 
 class GlobalLoss(nn.Module):
@@ -182,6 +183,6 @@ class GlobalLoss(nn.Module):
         lr = self.RegularizationLoss(y_pred)
         lpi = self.PermuInvLoss(y_pred, y_true)
 
-        # print(lb.item(), lq.item(), lr.item(), lpi.item())
+        # print(lb, lq, lr, lpi)
 
-        return 10.*lb + .5*lq + .1*lr + 0.2*lpi
+        return 10.*lb + .5*lq + .1*lr + 1*lpi

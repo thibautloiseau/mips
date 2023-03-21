@@ -9,7 +9,7 @@ class MeanShiftCluster(nn.Module):
     GPU meanshift and labeling, implemented by yjl, at 20201106
     """
     @torch.no_grad()
-    def __init__(self, spatial_radius=9, range_radius=0.5, num_iteration=4, cuda=True, use_spatial=False):
+    def __init__(self, spatial_radius=9, range_radius=0.3, num_iteration=4, cuda=True, use_spatial=False):
         super(MeanShiftCluster, self).__init__()
         self.sradius = spatial_radius
         self.sdiameter = spatial_radius * 2 + 1
@@ -92,7 +92,7 @@ class MeanShiftCluster(nn.Module):
             nei_x = self.compute_pairwise_conv(x, self.nei_kernel)
             rng_diff = self.compute_pairwise_conv(x, self.rng_kernel)
             rng_wght = self.gaussian(rng_diff, sigma=self.rsigma) # [bs, nei-size, ht, wd]
-            rng_wght = rng_wght - (rng_wght<self.rradius).float()*rng_wght*.9
+            rng_wght = rng_wght - (rng_wght < self.rradius).float()*rng_wght*.9
 
             if self.use_spatial:
                 rng_wght = rng_wght * self.spt_wght

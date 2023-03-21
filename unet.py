@@ -8,8 +8,8 @@ class UNetDown(nn.Module):
         super(UNetDown, self).__init__()
         self.model = nn.Sequential(
             nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_size),
-            nn.ReLU(),
+            nn.GroupNorm(16, out_size),
+            nn.Mish(),
             # nn.Conv2d(out_size, out_size, kernel_size=3, padding=1),
             # nn.BatchNorm2d(out_size),
             # nn.ReLU(),
@@ -26,8 +26,8 @@ class UNetUp(nn.Module):
         self.model = nn.Sequential(
             nn.Upsample(scale_factor=2),  # Upsample and then convolution to avoid artifacts
             nn.Conv2d(in_size, out_size, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_size),
-            nn.ReLU(),
+            nn.GroupNorm(16, out_size),
+            nn.Mish(),
             # nn.Conv2d(out_size, out_size, kernel_size=3, padding=1),
             # nn.BatchNorm2d(out_size),
             # nn.ReLU(),
@@ -58,31 +58,32 @@ class UNet(nn.Module):
     def __init__(self, in_channels=1, out_channels=1):
         super(UNet, self).__init__()
 
-        self.down1 = UNetDown(in_channels, 64)
-        self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128, 256)
-        self.down4 = UNetDown(256, 512)
-        self.down5 = UNetDown(512, 512)
+        # self.down1 = UNetDown(in_channels, 64)
+        # self.down2 = UNetDown(64, 128)
+        # self.down3 = UNetDown(128, 256)
+        # self.down4 = UNetDown(256, 512)
+        # self.down5 = UNetDown(512, 512)
+        #
+        # self.up1 = UNetUp(512, 512)
+        # self.up2 = UNetUp(1024, 256)
+        # self.up3 = UNetUp(512, 128)
+        # self.up4 = UNetUp(256, 64)
+        #
+        # self.final = FinalLayer(128, out_channels)
 
-        self.up1 = UNetUp(512, 512)
-        self.up2 = UNetUp(1024, 256)
-        self.up3 = UNetUp(512, 128)
-        self.up4 = UNetUp(256, 64)
+        self.down1 = UNetDown(in_channels, 16)
+        self.down2 = UNetDown(16, 32)
+        self.down3 = UNetDown(32, 64)
+        self.down4 = UNetDown(64, 128)
+        self.down5 = UNetDown(128, 128)
 
-        self.final = FinalLayer(128, out_channels)
-        #
-        # self.down1 = UNetDown(in_channels, 16)
-        # self.down2 = UNetDown(16, 32)
-        # self.down3 = UNetDown(32, 64)
-        # self.down4 = UNetDown(64, 128)
-        # self.down5 = UNetDown(128, 128)
-        #
-        # self.up1 = UNetUp(128, 128)
-        # self.up2 = UNetUp(256, 64)
-        # self.up3 = UNetUp(128, 32)
-        # self.up4 = UNetUp(64, 16)
-        #
-        # self.final = FinalLayer(32, out_channels)
+        self.up1 = UNetUp(128, 128)
+        self.up2 = UNetUp(256, 64)
+        self.up3 = UNetUp(128, 32)
+        self.up4 = UNetUp(64, 16)
+
+        self.final = FinalLayer(32, out_channels)
+
         self.meanshift = MeanShiftCluster()
 
     def forward(self, x):
@@ -101,7 +102,6 @@ class UNet(nn.Module):
 
         with torch.no_grad():
             seg = self.meanshift(out)
-            seg = (seg - seg.min()) / (seg.max() - seg.min()) * 255
 
         return {'out': out, 'seg': seg}
         # return {'out': out}

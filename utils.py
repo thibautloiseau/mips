@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from losses import GlobalLoss
 import sklearn.metrics as m
+import random
+import matplotlib.pyplot as plt
 
 
 def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=None):
@@ -22,7 +24,7 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
 
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=10)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, gamma=0.1, step_size=20)
 
     # ----------
     #  Training
@@ -35,6 +37,14 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
         for i, batch in tqdm(enumerate(train_loader)):
             slice = batch['slice'].type(Tensor)
             seg = batch['seg'].type(Tensor)
+
+            # plt.title('slice')
+            # plt.imshow(slice[0].squeeze().cpu().numpy())
+            # plt.show()
+            #
+            # plt.title('label')
+            # plt.imshow(seg[0].squeeze().cpu().numpy())
+            # plt.show()
 
             # Remove stored gradients
             optimizer.zero_grad()
@@ -59,6 +69,14 @@ def train(model, train_loader, val_loader=None, num_epochs=10, lr=0.001, logger=
                 for i, batch in tqdm(enumerate(val_loader)):
                     slice = batch['slice'].type(Tensor)
                     seg = batch['seg'].type(Tensor)
+
+                    # plt.title('slice')
+                    # plt.imshow(slice[0].squeeze().cpu().numpy())
+                    # plt.show()
+                    #
+                    # plt.title('label')
+                    # plt.imshow(seg[0].squeeze().cpu().numpy())
+                    # plt.show()
 
                     # Generate output
                     y_pred = model(slice)
@@ -141,4 +159,25 @@ def rand_score(y_pred, y_true):
 def save_checkpoint(model):
     torch.save(model.state_dict(), 'checkpoints/model.pt')
     return
+
+
+class FixRandomSeed:
+    """
+    This class fixes the seeds for numpy and random pkgs.
+    """
+    def __init__(self, random_seed: int = 0):
+        self.random_seed = random_seed
+        self.randombackup = random.getstate()
+        self.npbackup = np.random.get_state()
+        self.torchbackup = torch.get_rng_state()
+
+    def __enter__(self):
+        np.random.seed(self.random_seed)
+        random.seed(self.random_seed)
+        torch.manual_seed(self.random_seed)
+
+    def __exit__(self, *_):
+        np.random.set_state(self.npbackup)
+        random.setstate(self.randombackup)
+        torch.set_rng_state(self.torchbackup)
 
